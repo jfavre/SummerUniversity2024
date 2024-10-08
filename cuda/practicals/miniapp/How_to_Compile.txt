@@ -43,6 +43,26 @@ cd buildCatalyst
 make && ./bin/miniapp 256 256 100 0.001 --pv ../catalyst_state.py
 
 #########################################################
+on Todi (ALPS), tested Tue  8 Oct 08:18:58 CEST 2024
+
+uenv start prgenv-gnu/24.7:v3 --view default
+export SPACK_ROOT=$SCRATCH/spack-todi
+. $SPACK_ROOT/share/spack/setup-env.sh
+export SPACK_SYSTEM_CONFIG_PATH="/user-environment/config"
+
+export FC=`which gfortran`
+export CC=`which gcc`
+export CXX=`which g++`
+cmake -S . -B buildAscent-cuda -DCMAKE_BUILD_TYPE=Release \
+      -DAscent_DIR=$SCRATCH/Ascent-cuda/install/ascent-checkout/lib/cmake/ascent \
+      -DINSITU=Ascent
+
+cmake --build buildAscent-cuda
+cd buildAscent-cuda/
+make && ./bin/miniapp 256 256 100 0.001
+
+
+#########################################################
 on Piz Daint, tested Thu Mar 30 03:09:21 PM CEST 2023
 
 module load daint-gpu
