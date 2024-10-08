@@ -19,6 +19,11 @@
 // the domain decomposition is in the vertical
 // ny is the height of the local sub-domain
 
+#ifdef USE_ASCENT
+#include "AscentAdaptor.h"
+using namespace AscentAdaptor;
+#endif
+
 void write_to_file(int nx, int ny, double* data, int mpi_size, int mpi_rank);
 
 template <typename T>
@@ -117,6 +122,13 @@ int main(int argc, char** argv) {
     auto recv_buffer = malloc_pinned<double>(nx);
     auto send_buffer = malloc_pinned<double>(nx);
 
+#ifdef USE_ASCENT
+    conduit::Node ascent_options;
+    ascent_options["mpi_comm"] = MPI_Comm_c2f(MPI_COMM_WORLD);
+    AscentAdaptor::ascent.open(ascent_options);
+    AscentAdaptor::Initialize(x1, nx, ny, mpi_rank);
+#endif
+
     // time stepping loop
     for(auto step=0; step<nsteps; ++step) {
 
@@ -126,7 +138,20 @@ int main(int argc, char** argv) {
         // x0(:, ny-1) <- north
         // x0(:, ny-2) -> north
         if (use_rdma) {
-            // TODO: fill in g2g communication
+            if (mpi_rank>0) {
+                 MPI_Sendrecv(x0+nx, nx, MPI_DOUBLE,
+                            mpi_rank-1, 0,
+                            x0, nx, MPI_DOUBLE,
+                            mpi_rank-1, 1,
+                            MPI_COMM_WORLD, &status_south);
+            }
+            if (mpi_rank<mpi_size-1) {
+                 MPI_Sendrecv(x0+(ny-2)*nx, nx, MPI_DOUBLE,
+                            mpi_rank+1, 1,
+                            x0+(ny-1)*nx, nx, MPI_DOUBLE,
+                            mpi_rank+1, 0,
+                            MPI_COMM_WORLD, &status_north);
+            }
         }
         else {
             if (mpi_rank>0) {
@@ -149,7 +174,12 @@ int main(int argc, char** argv) {
             }
         }
         diffusion<<<grid_dim, block_dim>>>(x0, x1, nx, ny, dt);
-
+#ifdef USE_ASCENT
+        if(!(step % 1000))
+          {
+          AscentAdaptor::Execute(step, dt);
+          }
+#endif
         std::swap(x0, x1);
     }
     auto stop_event = stream.enqueue_event();
@@ -158,6 +188,10 @@ int main(int argc, char** argv) {
     copy_to_host<double>(x0, x_host, buffer_size);
 
     double time = stop_event.time_since(start_event);
+
+#ifdef USE_ASCENT
+    AscentAdaptor::Finalize();
+#endif
 
     if(mpi_rank==0) {
         std::cout << "time " << time << " s, "
@@ -205,7 +239,7 @@ void write_to_file(int nx, int ny, double* data, int mpi_size, int mpi_rank) {
         std::ofstream fid("output.bov");
         fid << "TIME: 0.0" << std::endl;
         fid << "DATA_FILE: output.bin" << std::endl;
-        fid << "DATA_SIZE: " << nx << " " << mpi_size*(ny-2) << " 1" << std::endl;;
+        fid << "DATA_SIZE: " << nx << ", " << mpi_size*(ny-2) << ", 1" << std::endl;;
         fid << "DATA_FORMAT: DOUBLE" << std::endl;
         fid << "VARIABLE: phi" << std::endl;
         fid << "DATA_ENDIAN: LITTLE" << std::endl;
