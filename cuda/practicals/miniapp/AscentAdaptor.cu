@@ -66,8 +66,6 @@ void Initialize()
   scenes["view/plots/p1/type"]  = "pseudocolor";
   scenes["view/plots/p1/field"] = "temperature";
   scenes["view/image_prefix"] = "temperature_%04d";
-
-  //std::cout << mesh.to_yaml();
 }
 
 void Execute() //int cycle, double time, Grid& grid, Attributes& attribs)
@@ -82,6 +80,17 @@ void Execute() //int cycle, double time, Grid& grid, Attributes& attribs)
 
 void Finalize()
 {
+  conduit::Node final_actions;
+  conduit::Node &add_action = final_actions.append();
+  
+  add_action["action"] = "add_extracts";
+  conduit::Node &extract = add_action["extracts"];
+  extract["e1/type"] = "relay";
+  extract["e1/params/path"] = "temperature_mesh";
+  extract["e1/params/protocol"] = "hdf5";
+
+  ascent.publish(mesh);
+  ascent.execute(final_actions);
   ascent.close();
   std::cout << "AscentFinalize.........................................\n";
 }
