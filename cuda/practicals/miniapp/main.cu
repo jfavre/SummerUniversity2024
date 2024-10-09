@@ -259,10 +259,6 @@ int main(int argc, char* argv[])
 #ifdef USE_ASCENT
   AscentAdaptor::Finalize();
 #endif
-
-#ifdef USE_ASCENT
-  AscentAdaptor::Finalize();
-#endif
     // get times
     timespent += omp_get_wtime();
 
