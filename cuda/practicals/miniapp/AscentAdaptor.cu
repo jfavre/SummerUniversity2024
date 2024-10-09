@@ -80,6 +80,7 @@ void Execute() //int cycle, double time, Grid& grid, Attributes& attribs)
 
 void Finalize()
 {
+#ifndef ASCENT_CUDA_ENABLED
   conduit::Node final_actions;
   conduit::Node &add_action = final_actions.append();
   
@@ -91,6 +92,7 @@ void Finalize()
 
   ascent.publish(mesh);
   ascent.execute(final_actions);
+#endif
   ascent.close();
   std::cout << "AscentFinalize.........................................\n";
 }
