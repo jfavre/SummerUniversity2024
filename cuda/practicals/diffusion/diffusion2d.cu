@@ -92,7 +92,11 @@ int main(int argc, char** argv) {
 
 #ifdef USE_ASCENT
     AscentAdaptor::ascent.open();
+#ifdef ASCENT_CUDA_ENABLED
     AscentAdaptor::Initialize(x1, nx, ny);
+#else
+    AscentAdaptor::Initialize(x_host, nx, ny);
+#endif
 #endif
 
     // time stepping loop
@@ -102,6 +106,9 @@ int main(int argc, char** argv) {
 #ifdef USE_ASCENT
         if(!(step % 1000))
           {
+#ifndef ASCENT_CUDA_ENABLED
+          copy_to_host<double>(x0, x_host, buffer_size);
+#endif
           AscentAdaptor::Execute(step, dt);
           }
 #endif

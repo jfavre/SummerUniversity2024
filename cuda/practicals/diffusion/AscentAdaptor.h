@@ -30,17 +30,17 @@ namespace AscentAdaptor
 
   mesh["coordsets/coords/spacing/dx"].set(spacing);
   mesh["coordsets/coords/spacing/dy"].set(spacing);
-  
+
   // add topology.
   mesh["topologies/mesh/type"].set("uniform");
   mesh["topologies/mesh/coordset"].set("coords");
-
+  
   // temperature is vertex-data.
   mesh["fields/temperature/association"].set("vertex");
   mesh["fields/temperature/type"].set("scalar");
   mesh["fields/temperature/topology"].set("mesh");
   mesh["fields/temperature/volume_dependent"].set("false");
-  mesh["fields/temperature/values"].set_external((double *)x1, nx * ny);
+  mesh["fields/temperature/values"].set_external((double *)x1, nx * ny); // x1 is either on the host or on the device
 
   conduit::Node verify_info;
   if (!conduit::blueprint::mesh::verify(mesh, verify_info))
@@ -50,24 +50,11 @@ namespace AscentAdaptor
     }
   //else CONDUIT_INFO("blueprint verify success!");
 
-  conduit::Node &add_action0 = actions.append();
-  add_action0["action"] = "add_pipelines";
-  conduit::Node &pipelines = add_action0["pipelines"];
-  pipelines["pl1/f1/type"] = "clip_with_field";
-  pipelines["pl1/f1/params/field"] = "temperature";
-  pipelines["pl1/f1/params/invert"] = "false";
-  pipelines["pl1/f1/params/clip_value"] = .5;
-
   conduit::Node &add_action = actions.append();
   add_action["action"] = "add_scenes";
   conduit::Node &scenes       = add_action["scenes"];
-  //scenes["s1/plots/p1/type"]  = "pseudocolor";
-  //scenes["s1/plots/p1/field"] = "temperature";
-  //scenes["view/plots/p2/type"]  = "mesh";
-  // if showing the clipped_by_value scene, don't show plot p1 which would hide p2
-  scenes["s1/plots/p2/type"]  = "pseudocolor";
-  scenes["s1/plots/p2/field"]  = "temperature";
-  scenes["s1/plots/p2/pipeline"]  = "pl1";
+  scenes["s1/plots/p1/type"]  = "pseudocolor";
+  scenes["s1/plots/p1/field"] = "temperature";
   scenes["s1/image_prefix"] = "temperature_%04d";
 }
 
@@ -82,16 +69,18 @@ void Execute(int timestep, double dt)
 
 void Finalize()
 {
-#ifdef IO_FROM_DEVICE_NOT_WORKING
-  ascent.publish(mesh);
+#ifndef ASCENT_CUDA_ENABLED
   conduit::Node action;
-  conduit::Node &add_extr = action.append();
-  add_extr["action"] = "add_extracts";
-  conduit::Node &extracts = add_extr["extracts"];
-  extracts["e1/type"] = "relay";
-  extracts["e1/params/path"] = "/dev/shm/heatmesh";
-  extracts["e1/params/protocol"] = "hdf5";
-  ascent.execute(actions);
+  conduit::Node &add_action = action.append();
+  
+  add_action["action"] = "add_extracts";
+  conduit::Node &extract = add_action["extracts"];
+  extract["e1/type"] = "relay";
+  extract["e1/params/path"] = "temperature_mesh";
+  extract["e1/params/protocol"] = "hdf5";
+  extract["e1/params/topologies"].append() = "mesh";
+  ascent.publish(mesh);
+  ascent.execute(action);
 #endif
   ascent.close();
   std::cout << "AscentFinalize.........................................\n";

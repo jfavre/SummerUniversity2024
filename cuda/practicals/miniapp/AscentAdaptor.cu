@@ -81,17 +81,18 @@ void Execute() //int cycle, double time, Grid& grid, Attributes& attribs)
 void Finalize()
 {
 #ifndef ASCENT_CUDA_ENABLED
-  conduit::Node final_actions;
-  conduit::Node &add_action = final_actions.append();
+  conduit::Node action;
+  conduit::Node &add_action = action.append();
   
   add_action["action"] = "add_extracts";
   conduit::Node &extract = add_action["extracts"];
   extract["e1/type"] = "relay";
   extract["e1/params/path"] = "temperature_mesh";
   extract["e1/params/protocol"] = "hdf5";
-
+  extract["e1/params/topologies"].append() = "mesh";
+  
   ascent.publish(mesh);
-  ascent.execute(final_actions);
+  ascent.execute(action);
 #endif
   ascent.close();
   std::cout << "AscentFinalize.........................................\n";

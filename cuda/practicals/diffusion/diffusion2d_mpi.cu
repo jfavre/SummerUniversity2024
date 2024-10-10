@@ -126,7 +126,11 @@ int main(int argc, char** argv) {
     conduit::Node ascent_options;
     ascent_options["mpi_comm"] = MPI_Comm_c2f(MPI_COMM_WORLD);
     AscentAdaptor::ascent.open(ascent_options);
+#ifdef ASCENT_CUDA_ENABLED
     AscentAdaptor::Initialize(x1, nx, ny, mpi_rank);
+#else
+    AscentAdaptor::Initialize(x_host, nx, ny, mpi_rank);
+#endif
 #endif
 
     // time stepping loop
@@ -177,6 +181,9 @@ int main(int argc, char** argv) {
 #ifdef USE_ASCENT
         if(!(step % 1000))
           {
+#ifndef ASCENT_CUDA_ENABLED
+          copy_to_host<double>(x0, x_host, buffer_size);
+#endif
           AscentAdaptor::Execute(step, dt);
           }
 #endif
