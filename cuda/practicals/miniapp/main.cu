@@ -262,6 +262,7 @@ int main(int argc, char* argv[])
     // get times
     timespent += omp_get_wtime();
 
+#if !defined(USE_ASCENT) && !defined(USE_CATALYST)
     ////////////////////////////////////////////////////////////////////
     // write final solution to BOV file for visualization
     ////////////////////////////////////////////////////////////////////
@@ -294,6 +295,7 @@ int main(int argc, char* argv[])
               << std::endl;
 
     std::cout << "Goodbye!" << std::endl;
+#endif
 
     return 0;
 }

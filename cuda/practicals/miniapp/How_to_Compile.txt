@@ -6,6 +6,8 @@ Fri  4 Oct 09:25:12 CEST 2024
 
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
+cd build
+make && ./bin/miniapp 256 256 100 0.01
 
 # compile with Ascent *without* cuda
 . ~/ascent.sh
@@ -16,7 +18,9 @@ cmake -S . \
       -DINSITU=Ascent
 cmake --build buildAscent
 cd buildAscent
-make && ./bin/miniapp 256 256 100 0.001
+make && ./bin/miniapp 256 256 100 0.01
+
+/local/apps/Ascent/install/ascent-checkout/utilities/ascent/replay/ascent_replay --root=temperature_mesh.cycle_000100.root --actions=hide/ascent_actions.yaml
 
 # compile *with* Ascent-cuda
 
@@ -28,7 +32,8 @@ cmake -S . \
 cmake --build buildAscent-cuda
 cd buildAscent-cuda
 . ~/ascent-cuda.sh
-make && ./bin/miniapp 256 256 100 0.001
+
+ctest
 
 # compile with Catalyst
 
@@ -39,8 +44,10 @@ cmake -S . \
       -DINSITU=Catalyst
 cmake --build buildCatalyst
 cd buildCatalyst
-. ~/pv513.sh
-make && ./bin/miniapp 256 256 100 0.001 --pv ../catalyst_state.py
+ctest
+
+# see . ~/pv513.sh
+make && ./bin/miniapp 256 256 100 0.01 --pv ../catalyst_state.py
 
 #########################################################
 on Todi (ALPS), tested Tue  8 Oct 08:18:58 CEST 2024
@@ -59,7 +66,7 @@ cmake -S . -B buildAscent-cuda -DCMAKE_BUILD_TYPE=Release \
 
 cmake --build buildAscent-cuda
 cd buildAscent-cuda/
-make && ./bin/miniapp 256 256 100 0.001
+make && ./bin/miniapp 256 256 100 0.01
 
 
 #########################################################

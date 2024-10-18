@@ -12,12 +12,13 @@ renderView1.CameraFocalPoint = [0.5, 0.5, 0.0]
 renderView1.CameraFocalDisk = 1.0
 renderView1.CameraParallelScale = 16.252051019206938
 
-LoadPalette(paletteName='WhiteBackground')
+LoadPalette(paletteName='WarmGrayBackground')
 
 reader = TrivialProducer(registrationName='grid')
 rep = Show(reader, renderView1)
-rep.Representation = 'Outline'
-ColorBy(rep, ['POINTS', ''])
+rep.Representation = 'Surface'
+ColorBy(rep, ['POINTS', 'temperature'])
+#ColorBy(rep, ['POINTS', ''])
 
 contour1 = Contour(registrationName='Contour1', Input=reader)
 contour1.ContourBy = ['POINTS', 'temperature']
@@ -29,8 +30,11 @@ contour1.PointMergeMethod = 'Uniform Binning'
 contour1Display = Show(contour1, renderView1)
 contour1Display.LineWidth = 2
 ColorBy(contour1Display, ['POINTS', 'temperature'])
-processIdLUT = GetColorTransferFunction('temperature')
-processIdLUT.RescaleTransferFunction(0.0, 1.0)
+temperatureLUT = GetColorTransferFunction('temperature')
+temperatureLUT.RescaleTransferFunction(0.0, 1.0)
+temperatureLUT.ApplyPreset('Fast', True)
+
+contour1Display.SetScalarBarVisibility(renderView1, True)
 
 ResetCamera()
 

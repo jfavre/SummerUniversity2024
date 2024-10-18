@@ -35,7 +35,7 @@ void Initialize(int argc, char* argv[])
   }
 
   // indicate that we want to load ParaView-Catalyst
-  node["catalyst_load/implementation"].set_string("paraview");
+  //node["catalyst_load/implementation"].set_string("paraview");
   // search path should be indicated via the env variable CATALYST_IMPLEMENTATION_PATHS
   // node["catalyst_load/search_paths/paraview"] = PARAVIEW_IMPL_DIR;
 

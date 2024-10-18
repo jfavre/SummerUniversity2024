@@ -17,4 +17,4 @@
           type: "pseudocolor"
           field: "temperature"
           pipeline: "pl1"
-      image_prefix: "replay_temperature"
+      image_prefix: "replay_temperature_%04d"

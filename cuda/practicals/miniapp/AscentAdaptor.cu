@@ -23,6 +23,7 @@ void Initialize()
   
   std::cout << "AscentInitialize.........................................\n";
   conduit::Node ascent_options;
+  ascent_options["default_dir"].set("datasets");
   ascent.open(ascent_options);
 
   mesh["coordsets/coords/dims/i"].set(options.nx);
