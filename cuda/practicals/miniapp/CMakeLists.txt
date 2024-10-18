@@ -28,7 +28,7 @@ set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-L/usr/local/cuda-12.2/targets/x86_64-linux/
 
 if(INSITU STREQUAL "None")
   add_executable(miniapp ${CUDA_SRCS})
-  target_link_libraries(miniapp PRIVATE OpenMP::OpenMP_CXX)
+  target_link_libraries(miniapp PRIVATE cublas OpenMP::OpenMP_CXX)
 elseif(INSITU STREQUAL "Catalyst")
   add_executable(miniapp ${CUDA_SRCS} CatalystAdaptor.cu)
   find_package(catalyst REQUIRED PATHS "${EBROOTCATALYST}/lib/cmake/catalyst-2.0")
