@@ -19,11 +19,14 @@ void write_to_file(int nx, int ny, double* data);
 
 #ifdef USE_ASCENT
 #include "AscentAdaptor.h"
-//using namespace AscentAdaptor;
+#endif
+
+#ifdef USE_CATALYST
+#include "CatalystAdaptor.h"
 #endif
 
 __global__
-void diffusion(double *x0, double *x1, int nx, int ny, double dt) {
+void diffusion(const double *x0, double *x1, int nx, int ny, double dt) {
     int i = threadIdx.x + blockDim.x*blockIdx.x + 1;
     int j = threadIdx.y + blockDim.y*blockIdx.y + 1;
 
@@ -53,8 +56,8 @@ int main(int argc, char** argv) {
     size_t nsteps = read_arg(argc, argv, 2, 100);
 
     // set domain size
-    size_t nx = 128+2;
     size_t ny = (1 << pow)+2;
+    size_t nx = ny;
     double dt = 0.1;
 
     std::cout << "\n## " << nx << "x" << ny
@@ -71,13 +74,13 @@ int main(int argc, char** argv) {
 
     // set initial conditions of 0 everywhere
     fill_gpu(x0, 0., buffer_size);
-    fill_gpu(x1, 0., buffer_size);
+    //fill_gpu(x1, 0., buffer_size); // no need to initialize x1. Will be set at the first timestep
 
     // set boundary conditions of 1 on south border
     fill_gpu(x0, 1., nx);
-    fill_gpu(x1, 1., nx);
+    //fill_gpu(x1, 1., nx);
     fill_gpu(x0+nx*(ny-1), 1., nx);
-    fill_gpu(x1+nx*(ny-1), 1., nx);
+    //fill_gpu(x1+nx*(ny-1), 1., nx);
 
     cuda_stream stream;
     cuda_stream copy_stream();
@@ -91,7 +94,11 @@ int main(int argc, char** argv) {
     dim3 grid_dim(nbx, nby);
 
 #ifdef USE_ASCENT
-    AscentAdaptor::ascent.open();
+    conduit::Node ascent_options;
+#ifdef ASCENT_CUDA_ENABLED
+    ascent_options["runtine/vtkm/backend"] = "cuda";
+#endif
+    AscentAdaptor::ascent.open(ascent_options);
 #ifdef ASCENT_CUDA_ENABLED
     AscentAdaptor::Initialize(x1, nx, ny);
 #else
@@ -99,37 +106,53 @@ int main(int argc, char** argv) {
 #endif
 #endif
 
+#ifdef USE_CATALYST
+    CatalystAdaptor::Initialize(argv[3]);
+#endif
+
     // time stepping loop
     for(auto step=0; step<nsteps; ++step) {
-        // TODO: launch the diffusion kernel in 2D
         diffusion<<<grid_dim, block_dim>>>(x0, x1, nx, ny, dt);
 #ifdef USE_ASCENT
         if(!(step % 1000))
           {
 #ifndef ASCENT_CUDA_ENABLED
-          copy_to_host<double>(x0, x_host, buffer_size);
+          copy_to_host<double>(x1, x_host, buffer_size); // use x1 with most recent result
 #endif
           AscentAdaptor::Execute(step, dt);
           }
 #endif
+
+#ifdef USE_CATALYST
+        if(!(step % 1000))
+          { // must copy data to host since we're not using a CUDA-enabled Catalyst at this time
+          copy_to_host<double>(x1, x_host, buffer_size); // use x1 with most recent result
+          CatalystAdaptor::Execute(x_host, nx, ny, step, dt);
+          }
+#endif
+
         std::swap(x0, x1);
     }
     auto stop_event = stream.enqueue_event();
     stop_event.wait();
 
     copy_to_host<double>(x0, x_host, buffer_size);
-
+    cudaFree(x0);
+    cudaFree(x1);
     double time = stop_event.time_since(start_event);
 #ifdef USE_ASCENT
     AscentAdaptor::Finalize();
 #endif
+#ifdef USE_CATALYST
+    CatalystAdaptor::Finalize();
+#endif
     std::cout << "## " << time << "s, "
               << nsteps*(nx-2)*(ny-2) / time << " points/second"
               << std::endl << std::endl;
-
+#if !defined(USE_ASCENT) && !defined(USE_CATALYST)
     std::cout << "writing to output.bin/bov" << std::endl;
     write_to_file(nx, ny, x_host);
-
+#endif
     return 0;
 }
 

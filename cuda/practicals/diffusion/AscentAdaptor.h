@@ -10,7 +10,7 @@ namespace AscentAdaptor
   conduit::Node mesh;
   conduit::Node actions;
 
-  void Initialize(const double *x1, const int nx, const int ny, const int offset=0)
+  void Initialize(const double *temperature_data, const int nx, const int ny, const int offset=0)
 { 
   std::cout << "AscentInitialize.........................................\n";
 
@@ -40,7 +40,8 @@ namespace AscentAdaptor
   mesh["fields/temperature/type"].set("scalar");
   mesh["fields/temperature/topology"].set("mesh");
   mesh["fields/temperature/volume_dependent"].set("false");
-  mesh["fields/temperature/values"].set_external((double *)x1, nx * ny); // x1 is either on the host or on the device
+  mesh["fields/temperature/values"].set_external((double *)temperature_data, nx * ny);
+  // temperature_data is either on the host or on the device
 
   conduit::Node verify_info;
   if (!conduit::blueprint::mesh::verify(mesh, verify_info))
@@ -55,6 +56,7 @@ namespace AscentAdaptor
   conduit::Node &scenes       = add_action["scenes"];
   scenes["s1/plots/p1/type"]  = "pseudocolor";
   scenes["s1/plots/p1/field"] = "temperature";
+  scenes["s1/plots/p2/type"]  = "mesh";
   scenes["s1/image_prefix"] = "temperature_%04d";
 }
 

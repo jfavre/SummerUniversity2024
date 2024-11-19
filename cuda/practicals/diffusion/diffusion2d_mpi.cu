@@ -50,8 +50,8 @@ int main(int argc, char** argv) {
     size_t nsteps = read_arg(argc, argv, 2, 100);
 
     // set domain size
-    size_t nx = 128;
-    size_t ny = 1 << pow;
+    size_t ny = (1 << pow)+2;
+    size_t nx = ny;
     double dt = 0.1;
 
     // initialize MPI
@@ -125,6 +125,10 @@ int main(int argc, char** argv) {
 #ifdef USE_ASCENT
     conduit::Node ascent_options;
     ascent_options["mpi_comm"] = MPI_Comm_c2f(MPI_COMM_WORLD);
+    ascent_options["default_dir"].set("datasets");
+#ifdef ASCENT_CUDA_ENABLED
+    ascent_options["runtine/vtkm/backend"] = "cuda";
+#endif
     AscentAdaptor::ascent.open(ascent_options);
 #ifdef ASCENT_CUDA_ENABLED
     AscentAdaptor::Initialize(x1, nx, ny, mpi_rank);
