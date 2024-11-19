@@ -52,6 +52,7 @@ temperaturePWF.ScalarRangeInitialized = 1
 
 # trace defaults for the display properties.
 readerDisplay.Representation = 'Surface With Edges'
+readerDisplay.Representation = 'Surface'
 readerDisplay.ColorArrayName = ['POINTS', 'temperature']
 readerDisplay.LookupTable = temperatureLUT
 readerDisplay.OSPRayScaleArray = 'temperature'

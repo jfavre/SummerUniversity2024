@@ -7,12 +7,13 @@
 #include <fstream>
 #include <iostream>
 #include <string>
-
+  
 namespace CatalystAdaptor
 {
-  conduit_cpp::Node mesh;
+  conduit_cpp::Node catalyst_mesh;
+  conduit_cpp::Node exec_params;
 
-void Initialize(char* PythonFilename)
+void InitializeCatalyst(const char* PythonFilename)
 {
   std::cout << "CatalystInitialize" << std::endl;
 
@@ -32,29 +33,22 @@ void Initialize(char* PythonFilename)
   }
 }
 
-void Execute(const double *temperature_data,
+void CreateConduitNode(const double *temperature_data,
              const int nx,
              const int ny,
-             int timestep, double dt, const int offset=0)
+             const int offset=0)
 {
-  conduit_cpp::Node exec_params;
-
-  // add time/cycle information
-  auto state = exec_params["catalyst/state"];
-  state["timestep"].set(timestep);
-  state["time"].set(timestep * dt);
-
   auto channel = exec_params["catalyst/channels/grid"];
   channel["type"].set("mesh");
-
+  channel["data"] = catalyst_mesh;
   auto mesh = channel["data"];
 
-  //std::cout << "Uniform Grid dimensions =[" << (sim.local_extents[1] - sim.local_extents[0] + 1) << ", " << (sim.local_extents[3] - sim.local_extents[2] + 1) << ", 1]"<< std::endl;
   mesh["coordsets/coords/dims/i"].set(nx);
   mesh["coordsets/coords/dims/j"].set(ny);
-  //mesh["coordsets/coords/dims/k"].set(1);
+  // do not specify the 3rd dimension with a dim of 1, a z_origin, and a z_spacing
+  
   float spacing = 1.0/(nx+1.0);
- 
+
   mesh["coordsets/coords/origin/x"].set(0.0);
   mesh["coordsets/coords/origin/y"].set(offset * spacing * (ny-1));
   //std::cout << "Oy = "<< offset * spacing * (ny-1) << "\n";
@@ -75,14 +69,21 @@ void Execute(const double *temperature_data,
   fields["temperature/topology"].set("mesh");
   fields["temperature/volume_dependent"].set("false");
   fields["temperature/values"].set_external(temperature_data, nx*ny);
-
+  // // temperature_data is on the host
+  mesh.print();
   conduit_cpp::Node verify_info;
   if(!conduit_cpp::Blueprint::verify("mesh", mesh, verify_info))
     std::cerr << "Diffusion mesh verify failed!" << std::endl;
   else
-    if(timestep == 1000)
-      mesh.print();
-                    
+    std::cerr << "Diffusion mesh verify passed!" << std::endl;
+}
+
+void Execute(int timestep, double dt)
+{
+  auto state = exec_params["catalyst/state"];
+  state["timestep"].set(timestep);
+  state["time"].set(timestep * dt);
+
   catalyst_status err = catalyst_execute(conduit_cpp::c_node(&exec_params));
   if (err != catalyst_status_ok)
   {

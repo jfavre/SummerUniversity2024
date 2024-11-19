@@ -14,8 +14,11 @@ namespace AscentAdaptor
 { 
   std::cout << "AscentInitialize.........................................\n";
 
-  // default name for ghost field is used
-  // ascent_options["ghost_field_name"].append() = "ascent_ghosts";
+  conduit::Node ascent_options;
+#ifdef ASCENT_CUDA_ENABLED
+  ascent_options["runtine/vtkm/backend"] = "cuda";
+#endif
+    AscentAdaptor::ascent.open(ascent_options);
 
   mesh["coordsets/coords/dims/i"].set(nx);
   mesh["coordsets/coords/dims/j"].set(ny);
@@ -43,6 +46,7 @@ namespace AscentAdaptor
   mesh["fields/temperature/values"].set_external((double *)temperature_data, nx * ny);
   // temperature_data is either on the host or on the device
 
+  mesh.print();
   conduit::Node verify_info;
   if (!conduit::blueprint::mesh::verify(mesh, verify_info))
     {

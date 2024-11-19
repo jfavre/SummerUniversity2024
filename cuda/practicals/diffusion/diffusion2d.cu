@@ -94,11 +94,6 @@ int main(int argc, char** argv) {
     dim3 grid_dim(nbx, nby);
 
 #ifdef USE_ASCENT
-    conduit::Node ascent_options;
-#ifdef ASCENT_CUDA_ENABLED
-    ascent_options["runtine/vtkm/backend"] = "cuda";
-#endif
-    AscentAdaptor::ascent.open(ascent_options);
 #ifdef ASCENT_CUDA_ENABLED
     AscentAdaptor::Initialize(x1, nx, ny);
 #else
@@ -107,7 +102,8 @@ int main(int argc, char** argv) {
 #endif
 
 #ifdef USE_CATALYST
-    CatalystAdaptor::Initialize(argv[3]);
+    CatalystAdaptor::InitializeCatalyst(argv[3]);
+    CatalystAdaptor::CreateConduitNode(x_host, nx, ny);
 #endif
 
     // time stepping loop
@@ -127,7 +123,7 @@ int main(int argc, char** argv) {
         if(!(step % 1000))
           { // must copy data to host since we're not using a CUDA-enabled Catalyst at this time
           copy_to_host<double>(x1, x_host, buffer_size); // use x1 with most recent result
-          CatalystAdaptor::Execute(x_host, nx, ny, step, dt);
+          CatalystAdaptor::Execute(step, dt);
           }
 #endif
 
