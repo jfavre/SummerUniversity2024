@@ -24,6 +24,10 @@
 using namespace AscentAdaptor;
 #endif
 
+#ifdef USE_CATALYST
+#include "CatalystAdaptor.h"
+#endif
+
 void write_to_file(int nx, int ny, double* data, int mpi_size, int mpi_rank);
 
 template <typename T>
@@ -137,6 +141,11 @@ int main(int argc, char** argv) {
 #endif
 #endif
 
+#ifdef USE_CATALYST
+    CatalystAdaptor::InitializeCatalyst(argv[4]);
+    CatalystAdaptor::CreateConduitNode(x_host, nx, ny, mpi_rank);
+#endif
+
     // time stepping loop
     for(auto step=0; step<nsteps; ++step) {
 
@@ -189,6 +198,13 @@ int main(int argc, char** argv) {
           copy_to_host<double>(x0, x_host, buffer_size);
 #endif
           AscentAdaptor::Execute(step, dt);
+          }
+#endif
+#ifdef USE_CATALYST
+        if(!(step % 1000))
+          { // must copy data to host since we're not using a CUDA-enabled Catalyst at this time
+          copy_to_host<double>(x1, x_host, buffer_size); // use x1 with most recent result
+          CatalystAdaptor::Execute(step, dt);
           }
 #endif
         std::swap(x0, x1);
