@@ -102,7 +102,7 @@ int main(int argc, char** argv) {
 #endif
 
 #ifdef USE_CATALYST
-    CatalystAdaptor::InitializeCatalyst(argv[3]);
+    CatalystAdaptor::InitializeCatalyst(argv[4]);
     CatalystAdaptor::CreateConduitNode(x_host, nx, ny);
 #endif
 
