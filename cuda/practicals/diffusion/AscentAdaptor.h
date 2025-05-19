@@ -10,43 +10,45 @@ namespace AscentAdaptor
   conduit::Node mesh;
   conduit::Node actions;
 
-  void Initialize(const double *temperature_data, const int nx, const int ny, const int offset=0)
+  void Initialize(double *temperature_data, const int nx, const int ny, const int offset=0)
 { 
   std::cout << "AscentInitialize.........................................\n";
 
   conduit::Node ascent_options;
-#ifdef ASCENT_CUDA_ENABLED
-  ascent_options["runtine/vtkm/backend"] = "cuda";
+#if defined (ASCENT_CUDA_ENABLED)
+  std::cout << "[using ascent cuda support]" << std::endl;
+  ascent_options["runtime/vtkm/backend"] = "cuda";
 #endif
-    AscentAdaptor::ascent.open(ascent_options);
+  AscentAdaptor::ascent.open(ascent_options);
 
   mesh["coordsets/coords/dims/i"].set(nx);
   mesh["coordsets/coords/dims/j"].set(ny);
+  //mesh["coordsets/coords/dims/k"].set(1);
   // do not specify the 3rd dimension with a dim of 1, a z_origin, and a z_spacing
 
   float spacing = 1.0/(nx+1.0);
  
   mesh["coordsets/coords/origin/x"].set(0.0);
   mesh["coordsets/coords/origin/y"].set(offset * spacing * (ny-1));
+  //mesh["coordsets/coords/origin/z"].set(0.0);
   //std::cout << "Oy = "<< offset * spacing * (ny-1) << "\n";
   mesh["coordsets/coords/type"].set("uniform");
 
   mesh["coordsets/coords/spacing/dx"].set(spacing);
   mesh["coordsets/coords/spacing/dy"].set(spacing);
-
+  //mesh["coordsets/coords/spacing/dz"].set(spacing);
   // add topology.
   mesh["topologies/mesh/type"].set("uniform");
   mesh["topologies/mesh/coordset"].set("coords");
   
-  // temperature is vertex-data.
-  mesh["fields/temperature/association"].set("vertex");
-  mesh["fields/temperature/type"].set("scalar");
-  mesh["fields/temperature/topology"].set("mesh");
-  mesh["fields/temperature/volume_dependent"].set("false");
-  mesh["fields/temperature/values"].set_external((double *)temperature_data, nx * ny);
-  // temperature_data is either on the host or on the device
+  // Temperature is vertex-data
+  mesh["fields/Temperature/association"].set("vertex");
+  mesh["fields/Temperature/type"].set("scalar");
+  mesh["fields/Temperature/topology"].set("mesh");
+  mesh["fields/Temperature/volume_dependent"].set("false");
+  mesh["fields/Temperature/values"].set_external_float64_ptr(temperature_data, nx * ny);
+  // Temperature_data is either on the host or on the device
 
-  mesh.print();
   conduit::Node verify_info;
   if (!conduit::blueprint::mesh::verify(mesh, verify_info))
     {
@@ -59,18 +61,18 @@ namespace AscentAdaptor
   add_action["action"] = "add_scenes";
   conduit::Node &scenes       = add_action["scenes"];
   scenes["s1/plots/p1/type"]  = "pseudocolor";
-  scenes["s1/plots/p1/field"] = "temperature";
-  scenes["s1/plots/p2/type"]  = "mesh";
-  scenes["s1/image_prefix"] = "temperature_%04d";
+  scenes["s1/plots/p1/field"] = "Temperature";
+  //scenes["s1/plots/p2/type"]  = "mesh";
+  scenes["s1/image_prefix"] = "Temperature_%04d";
 }
 
 void Execute(int timestep, double dt)
 {
   mesh["state/cycle"].set(timestep);
   mesh["state/time"].set(timestep * dt);
-
-  ascent.publish(mesh);
-  ascent.execute(actions);
+  //mesh.print(); // don't use with CUDA. Causes a crash
+  AscentAdaptor::ascent.publish(mesh);
+  AscentAdaptor::ascent.execute(actions);
 }
 
 void Finalize()

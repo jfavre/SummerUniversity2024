@@ -43,7 +43,7 @@ static void cublas_check_status(cublasStatus_t status) {
 static void cuda_check_last_kernel(std::string const& errstr) {
     auto status = cudaGetLastError();
     if(status != cudaSuccess) {
-        std::cout << "error: CUDA kernel launch : " << errstr << " : "
+        std::cerr << "error: CUDA kernel launch : " << errstr << " : "
                   << cudaGetErrorString(status) << std::endl;
         exit(1);
     }
@@ -96,6 +96,7 @@ void copy_to_device(T* from, T* to, size_t n) {
 // copy n*T from device to host
 template <typename T>
 void copy_to_host(T* from, T* to, size_t n) {
+    std::cout << "copy_to_host() of " << n*sizeof(T) << " bytes" << std::endl;
     auto status = cudaMemcpy(to, from, n*sizeof(T), cudaMemcpyDeviceToHost);
     cuda_check_status(status);
 }
@@ -163,9 +164,9 @@ static size_t read_arg(int argc, char** argv, size_t index, int default_value) {
             return n;
         }
         catch (std::exception e) {
-            std::cout << "error : invalid argument \'" << argv[index]
-                      << "\', expected a positive integer." << std::endl;
-            exit(1);
+            //std::cout << "error : invalid argument \'" << argv[index]
+                      //<< "\', expected a positive integer." << std::endl;
+            //exit(1);
         }
     }
 

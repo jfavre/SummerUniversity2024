@@ -21,11 +21,14 @@
 
 #ifdef USE_ASCENT
 #include "AscentAdaptor.h"
-using namespace AscentAdaptor;
 #endif
 
 #ifdef USE_CATALYST
 #include "CatalystAdaptor.h"
+#endif
+
+#ifdef USE_VTKM
+#include "VTKmAdaptor.h"
 #endif
 
 void write_to_file(int nx, int ny, double* data, int mpi_size, int mpi_rank);
@@ -141,8 +144,13 @@ int main(int argc, char** argv) {
 #endif
 #endif
 
+#ifdef USE_VTKM
+    vtkm::cont::Initialize(argc, argv);
+    VTKmAdaptor::Initialize(nx, ny, mpi_rank);
+#endif
+
 #ifdef USE_CATALYST
-    CatalystAdaptor::InitializeCatalyst(argv[4]);
+    CatalystAdaptor::InitializeCatalyst(argv[3]);
     CatalystAdaptor::CreateConduitNode(x_host, nx, ny, mpi_rank);
 #endif
 
@@ -191,22 +199,27 @@ int main(int argc, char** argv) {
             }
         }
         diffusion<<<grid_dim, block_dim>>>(x0, x1, nx, ny, dt);
-#ifdef USE_ASCENT
+
         if(!(step % 1000))
           {
+#ifdef USE_ASCENT
 #ifndef ASCENT_CUDA_ENABLED
           copy_to_host<double>(x0, x_host, buffer_size);
 #endif
           AscentAdaptor::Execute(step, dt);
-          }
 #endif
+
 #ifdef USE_CATALYST
-        if(!(step % 1000))
-          { // must copy data to host since we're not using a CUDA-enabled Catalyst at this time
+        
+        // must copy data to host since we're not using a CUDA-enabled Catalyst at this time
           copy_to_host<double>(x1, x_host, buffer_size); // use x1 with most recent result
           CatalystAdaptor::Execute(step, dt);
-          }
 #endif
+
+#ifdef USE_VTKM
+        VTKmAdaptor::Execute(step, x1, nx*ny, mpi_rank); //execute every 1000 steps;
+#endif
+        }
         std::swap(x0, x1);
     }
     auto stop_event = stream.enqueue_event();
@@ -218,6 +231,12 @@ int main(int argc, char** argv) {
 
 #ifdef USE_ASCENT
     AscentAdaptor::Finalize();
+#endif
+#ifdef USE_CATALYST
+    CatalystAdaptor::Finalize();
+#endif
+#ifdef USE_VTKM
+    VTKmAdaptor::Finalize();
 #endif
 
     if(mpi_rank==0) {

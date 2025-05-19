@@ -13,7 +13,22 @@
 // note that nx and ny have 2 added to them to account for halos
 
 template <typename T>
-void fill_gpu(T *v, T value, int n);
+__global__
+void fill(T *v, T value, int n) {
+    int tid  = threadIdx.x + blockDim.x*blockIdx.x;
+
+    if(tid<n) {
+        v[tid] = value;
+    }
+}
+
+template <typename T>
+void fill_gpu(T *v, T value, int n) {
+    auto block_dim = 192ul;
+    auto grid_dim = n/block_dim + (n%block_dim ? 1 : 0);
+
+    fill<T><<<grid_dim, block_dim>>>(v, value, n);
+}
 
 void write_to_file(int nx, int ny, double* data);
 
@@ -23,6 +38,10 @@ void write_to_file(int nx, int ny, double* data);
 
 #ifdef USE_CATALYST
 #include "CatalystAdaptor.h"
+#endif
+
+#ifdef USE_VTKM
+#include "VTKmAdaptor.h"
 #endif
 
 __global__
@@ -53,7 +72,7 @@ int main(int argc, char** argv) {
     // first argument is the y dimension = 2^arg
     size_t pow    = read_arg(argc, argv, 1, 8);
     // second argument is the number of time steps
-    size_t nsteps = read_arg(argc, argv, 2, 100);
+    size_t nsteps = read_arg(argc, argv, 2, 5001);
 
     // set domain size
     size_t ny = (1 << pow)+2;
@@ -73,14 +92,14 @@ int main(int argc, char** argv) {
     double *x1     = malloc_device<double>(buffer_size);
 
     // set initial conditions of 0 everywhere
-    fill_gpu(x0, 0., buffer_size);
-    //fill_gpu(x1, 0., buffer_size); // no need to initialize x1. Will be set at the first timestep
+    fill_gpu<double>(x0, 0., buffer_size);
+    //fill_gpu<double>(x1, 0., buffer_size); // no need to initialize x1. Will be set at the first timestep
 
     // set boundary conditions of 1 on south border
-    fill_gpu(x0, 1., nx);
-    //fill_gpu(x1, 1., nx);
-    fill_gpu(x0+nx*(ny-1), 1., nx);
-    //fill_gpu(x1+nx*(ny-1), 1., nx);
+    fill_gpu<double>(x0, 1., nx);
+    //fill_gpu<double>(x1, 1., nx);
+    fill_gpu<double>(x0+nx*(ny-1), 1., nx);
+    //fill_gpu<double>(x1+nx*(ny-1), 1., nx);
 
     cuda_stream stream;
     cuda_stream copy_stream();
@@ -101,32 +120,39 @@ int main(int argc, char** argv) {
 #endif
 #endif
 
+#ifdef USE_VTKM
+    vtkm::cont::Initialize(argc, argv);
+    VTKmAdaptor::Initialize(nx, ny);
+#endif
+
 #ifdef USE_CATALYST
-    CatalystAdaptor::InitializeCatalyst(argv[4]);
+    CatalystAdaptor::InitializeCatalyst(argv[3]);
     CatalystAdaptor::CreateConduitNode(x_host, nx, ny);
 #endif
 
     // time stepping loop
     for(auto step=0; step<nsteps; ++step) {
         diffusion<<<grid_dim, block_dim>>>(x0, x1, nx, ny, dt);
-#ifdef USE_ASCENT
+
         if(!(step % 1000))
           {
+#ifdef USE_ASCENT
 #ifndef ASCENT_CUDA_ENABLED
           copy_to_host<double>(x1, x_host, buffer_size); // use x1 with most recent result
 #endif
           AscentAdaptor::Execute(step, dt);
-          }
 #endif
 
 #ifdef USE_CATALYST
-        if(!(step % 1000))
-          { // must copy data to host since we're not using a CUDA-enabled Catalyst at this time
+          // must copy data to host since we're not using a CUDA-enabled Catalyst at this time
           copy_to_host<double>(x1, x_host, buffer_size); // use x1 with most recent result
           CatalystAdaptor::Execute(step, dt);
-          }
 #endif
 
+#ifdef USE_VTKM
+        VTKmAdaptor::Execute(step, x1, nx*ny); //execute every 1000 steps;
+#endif
+          }
         std::swap(x0, x1);
     }
     auto stop_event = stream.enqueue_event();
@@ -142,6 +168,10 @@ int main(int argc, char** argv) {
 #ifdef USE_CATALYST
     CatalystAdaptor::Finalize();
 #endif
+#ifdef USE_VTKM
+    VTKmAdaptor::Finalize();
+#endif
+
     std::cout << "## " << time << "s, "
               << nsteps*(nx-2)*(ny-2) / time << " points/second"
               << std::endl << std::endl;
@@ -150,24 +180,6 @@ int main(int argc, char** argv) {
     write_to_file(nx, ny, x_host);
 #endif
     return 0;
-}
-
-template <typename T>
-__global__
-void fill(T *v, T value, int n) {
-    int tid  = threadIdx.x + blockDim.x*blockIdx.x;
-
-    if(tid<n) {
-        v[tid] = value;
-    }
-}
-
-template <typename T>
-void fill_gpu(T *v, T value, int n) {
-    auto block_dim = 192ul;
-    auto grid_dim = n/block_dim + (n%block_dim ? 1 : 0);
-
-    fill<T><<<grid_dim, block_dim>>>(v, value, n);
 }
 
 void write_to_file(int nx, int ny, double* data) {

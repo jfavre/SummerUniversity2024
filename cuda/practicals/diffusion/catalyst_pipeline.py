@@ -9,13 +9,6 @@ from paraview.simple import *
 #### disable automatic camera reset on 'Show'
 paraview.simple._DisableFirstRenderCameraReset()
 
-# ----------------------------------------------------------------
-# setup views used in the visualization
-# ----------------------------------------------------------------
-
-# get the material library
-materialLibrary1 = GetMaterialLibrary()
-
 # Create a new 'Render View'
 renderView1 = CreateView('RenderView')
 renderView1.ViewSize = [1024,1024]
@@ -27,10 +20,6 @@ renderView1.CameraPosition = [0.44736842438578606, 0.44736842438578606, 2.997368
 renderView1.CameraFocalPoint = [0.44736842438578606, 0.44736842438578606, 0.0]
 renderView1.CameraFocalDisk = 1.0
 renderView1.CameraParallelScale = 0.6326744773387929
-renderView1.LegendGrid = 'Legend Grid Actor'
-renderView1.PolarGrid = 'Polar Grid Actor'
-renderView1.BackEnd = 'OSPRay raycaster'
-renderView1.OSPRayMaterialLibrary = materialLibrary1
 
 reader = TrivialProducer(registrationName='grid')
 

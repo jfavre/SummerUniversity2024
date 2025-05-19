@@ -21,7 +21,7 @@ void InitializeCatalyst(const char* PythonFilename)
   // the Catalyst Python filename should be the only argument at this time
 
   const auto path = std::string(PythonFilename);
-  node["catalyst/scripts/script0"].set_string(path);
+  node["catalyst/scripts/script0/filename"].set_string(path);
 
   // indicate that we want to load ParaView-Catalyst
   node["catalyst_load/implementation"].set_string("paraview");
