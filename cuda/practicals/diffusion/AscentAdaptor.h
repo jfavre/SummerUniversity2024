@@ -15,6 +15,14 @@ namespace AscentAdaptor
   std::cout << "AscentInitialize.........................................\n";
 
   conduit::Node ascent_options;
+  std::string output_path = "datasets";
+  std::string varname = "Temperature";
+  if(!conduit::utils::is_directory(output_path))
+  {
+    ASCENT_INFO("Creating output folder: " + output_path);
+    conduit::utils::create_directory(output_path);
+  }
+  ascent_options["default_dir"] = output_path;
 #if defined (ASCENT_CUDA_ENABLED)
   std::cout << "[using ascent cuda support]" << std::endl;
   ascent_options["runtime/vtkm/backend"] = "cuda";
@@ -46,7 +54,7 @@ namespace AscentAdaptor
   mesh["fields/Temperature/type"].set("scalar");
   mesh["fields/Temperature/topology"].set("mesh");
   mesh["fields/Temperature/volume_dependent"].set("false");
-  mesh["fields/Temperature/values"].set_external_float64_ptr(temperature_data, nx * ny);
+  mesh["fields/Temperature/values"].set_external(temperature_data, nx * ny);
   // Temperature_data is either on the host or on the device
 
   conduit::Node verify_info;
@@ -57,13 +65,25 @@ namespace AscentAdaptor
     }
   //else CONDUIT_INFO("blueprint verify success!");
 
+  conduit::Node pipelines;
+  pipelines["isolines/f1/type"] = "contour";
+  conduit::Node &params1 = pipelines["isolines/f1/params"];
+  params1["field"] = varname;
+  params1["iso_values"].set({0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9});
+
+  conduit::Node &add_pipelines = actions.append();
+  add_pipelines["action"] = "add_pipelines";
+  add_pipelines["pipelines"] = pipelines;
+  
   conduit::Node &add_action = actions.append();
   add_action["action"] = "add_scenes";
   conduit::Node &scenes       = add_action["scenes"];
   scenes["s1/plots/p1/type"]  = "pseudocolor";
-  scenes["s1/plots/p1/field"] = "Temperature";
-  //scenes["s1/plots/p2/type"]  = "mesh";
-  scenes["s1/image_prefix"] = "Temperature_%04d";
+  scenes["s1/plots/p1/field"] = varname;
+  // adding the iso-lines
+  scenes["s1/plots/p2/type"]  = "mesh";
+  scenes["s1/plots/p2/pipeline"] = "isolines";
+  scenes["s1/image_prefix"] = varname + "_%04d";
 }
 
 void Execute(int timestep, double dt)

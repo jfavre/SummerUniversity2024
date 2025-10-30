@@ -44,6 +44,10 @@ void write_to_file(int nx, int ny, double* data);
 #include "VTKmAdaptor.h"
 #endif
 
+#ifdef USE_VISKORES
+#include "ViskoresAdaptor.h"
+#endif
+
 __global__
 void diffusion(const double *x0, double *x1, int nx, int ny, double dt) {
     int i = threadIdx.x + blockDim.x*blockIdx.x + 1;
@@ -57,15 +61,6 @@ void diffusion(const double *x0, double *x1, int nx, int ny, double dt) {
 
     }
 }
-// TODO : implement stencil using 2d launch configuration
-// NOTE : i-major ordering, i.e. x[i,j] is indexed at location [i+j*nx]
-//  for(i=1; i<nx-1; ++i) {
-//    for(j=1; j<ny-1; ++j) {
-//        x1[i,j] = x0[i,j] + dt * (-4.*x0[i,j]
-//                   + x0[i,j-1] + x0[i,j+1]
-//                   + x0[i-1,j] + x0[i+1,j]);
-//    }
-//  }
 
 int main(int argc, char** argv) {
     // set up parameters
@@ -125,6 +120,11 @@ int main(int argc, char** argv) {
     VTKmAdaptor::Initialize(nx, ny);
 #endif
 
+#ifdef USE_VISKORES
+    viskores::cont::Initialize(argc, argv);
+    ViskoresAdaptor::Initialize(nx, ny);
+#endif
+
 #ifdef USE_CATALYST
     CatalystAdaptor::InitializeCatalyst(argv[3]);
     CatalystAdaptor::CreateConduitNode(x_host, nx, ny);
@@ -152,6 +152,9 @@ int main(int argc, char** argv) {
 #ifdef USE_VTKM
         VTKmAdaptor::Execute(step, x1, nx*ny); //execute every 1000 steps;
 #endif
+#ifdef USE_VISKORES
+        ViskoresAdaptor::Execute(step, x1, nx*ny); //execute every 1000 steps;
+#endif
           }
         std::swap(x0, x1);
     }
@@ -171,7 +174,9 @@ int main(int argc, char** argv) {
 #ifdef USE_VTKM
     VTKmAdaptor::Finalize();
 #endif
-
+#ifdef USE_VISKORES
+    ViskoresAdaptor::Finalize();
+#endif
     std::cout << "## " << time << "s, "
               << nsteps*(nx-2)*(ny-2) / time << " points/second"
               << std::endl << std::endl;

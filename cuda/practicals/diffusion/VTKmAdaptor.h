@@ -76,7 +76,7 @@ void Execute(int it, double *temperature_data, const int size, const int rank=0)
   scene.AddActor(actor);
 
   //m_color_bar_annotation.SetRange(vtkm::Range(0.0, 1.0), 5);
-  fname << "/dev/shm/insitu." << std::setfill('0') << std::setw(4) << it 
+  fname << "/dev/shm/insitu." << std::setfill('0') << std::setw(6) << it 
         << "." << std::setfill('0') << std::setw(2) << rank <<".png";
 
   vtkm::rendering::View3D view(scene, mapper2, canvas);
