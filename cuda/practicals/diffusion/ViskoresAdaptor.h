@@ -114,7 +114,7 @@ void Execute(int it, double *temperature_data, const int size, const int rank=0)
   m_color_bar_annotation.Render(camera, *annotate, canvas);
 
   std::ostringstream fname;
-  fname << "/dev/shm/Temperature-Viskores." << std::setfill('0') << std::setw(6) << it 
+  fname << "./datasets/Temperature-Viskores." << std::setfill('0') << std::setw(6) << it 
         << "." << std::setfill('0') << std::setw(2) << rank <<".png";
   view.SaveAs(fname.str());
 }

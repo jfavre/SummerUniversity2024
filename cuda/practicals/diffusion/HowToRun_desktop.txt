@@ -1,0 +1,46 @@
+# tested Sat 22 Nov 09:56:17 CET 2025
+
+cmake -S . -B buildCatalyst \
+  -DCMAKE_CUDA_HOST_COMPILER=/usr/bin/g++-12 \
+  -DCMAKE_CUDA_ARCHITECTURES=86 \
+  -DINSITU=Catalyst \
+  -Dcatalyst_DIR=`spack location -i libcatalyst`/lib/cmake/catalyst-2.0
+cmake --build buildCatalyst
+
+export CATALYST_IMPLEMENTATION_PATHS=/local/apps/ParaView/dev/lib/catalyst
+./buildCatalyst/bin/diffusion2d 8 40001 catalyst_pipeline.py 
+eog datasets/Temperature-Catalyst.*png
+###############################################################################
+
+cmake -S . -B buildVTKm \
+  -DCMAKE_CUDA_HOST_COMPILER=/usr/bin/g++-12 \
+  -DCMAKE_CUDA_ARCHITECTURES=86 \
+  -DINSITU=VTK-m \
+  -DVTKm_DIR=/local/apps/Ascent-cuda/install/vtk-m-v2.3.0/lib/cmake/vtkm-2.3
+cmake --build buildVTKm
+./buildVTKm/bin/diffusion2d 8 40001 catalyst_pipeline.py
+eog datasets/Temperature-vtkm*png
+
+###############################################################################
+
+cmake -S . -B buildViskores \
+  -DCMAKE_CUDA_HOST_COMPILER=/usr/bin/g++-12 \
+  -DCMAKE_CUDA_ARCHITECTURES=86 \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DINSITU=Viskores -DViskores_DIR=/local/apps/viskores-build-cuda/lib/cmake/viskores-1.1
+cmake --build buildViskores
+./buildViskores/bin/diffusion2d 8 40001
+eog datasets/Temperature-Viskores.*png
+
+###############################################################################
+
+cmake -S . -B  buildAscent-cuda \
+  -DCMAKE_CUDA_HOST_COMPILER=/usr/bin/g++-12 \
+  -DCMAKE_CUDA_ARCHITECTURES=86 \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DINSITU=Ascent -DAscent_DIR=/local/apps/Ascent-cuda/install/ascent-checkout/lib/cmake/ascent
+cmake --build buildAscent-cuda
+./buildAscent-cuda/bin/diffusion2d 8 40001
+eog datasets/Temperature-Ascent.*png
+###############################################################################
+
