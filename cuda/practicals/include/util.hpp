@@ -176,7 +176,7 @@ static size_t read_arg(int argc, char** argv, size_t index, int default_value) {
 template <typename T>
 T* malloc_host(size_t N, T value=T()) {
     T* ptr = (T*)(malloc(N*sizeof(T)));
-    std::fill(ptr, ptr+N, value);
+    //std::fill(ptr, ptr+N, value);
 
     return ptr;
 }
