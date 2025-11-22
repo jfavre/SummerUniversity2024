@@ -82,9 +82,9 @@ int main(int argc, char** argv) {
     // allocate memory on device and host
     // note : allocate enough memory for the halo around the boundary
     auto buffer_size = nx*ny;
-    double *x_host = malloc_host<double>(buffer_size);
-    double *x0     = malloc_device<double>(buffer_size);
-    double *x1     = malloc_device<double>(buffer_size);
+    //double *x_host = malloc_host<double>(buffer_size);
+    double *x0     = malloc_host<double>(buffer_size);
+    double *x1     = malloc_host<double>(buffer_size);
 
     // set initial conditions of 0 everywhere
     fill_gpu<double>(x0, 0., buffer_size);
@@ -127,14 +127,14 @@ int main(int argc, char** argv) {
 
 #ifdef USE_CATALYST
     CatalystAdaptor::InitializeCatalyst(argv[3]);
-    CatalystAdaptor::CreateConduitNode(x_host, nx, ny);
+    CatalystAdaptor::CreateConduitNode(x1, nx, ny);
 #endif
 
     // time stepping loop
     for(auto step=0; step<nsteps; ++step) {
         diffusion<<<grid_dim, block_dim>>>(x0, x1, nx, ny, dt);
 
-        if(!(step % 1000))
+        if(!(step % 2000))
           {
 #ifdef USE_ASCENT
 #ifndef ASCENT_CUDA_ENABLED
@@ -145,7 +145,7 @@ int main(int argc, char** argv) {
 
 #ifdef USE_CATALYST
           // must copy data to host since we're not using a CUDA-enabled Catalyst at this time
-          copy_to_host<double>(x1, x_host, buffer_size); // use x1 with most recent result
+          // copy_to_host<double>(x1, x_host, buffer_size); // use x1 with most recent result
           CatalystAdaptor::Execute(step, dt);
 #endif
 
@@ -161,9 +161,10 @@ int main(int argc, char** argv) {
     auto stop_event = stream.enqueue_event();
     stop_event.wait();
 
-    copy_to_host<double>(x0, x_host, buffer_size);
-    cudaFree(x0);
-    cudaFree(x1);
+    //copy_to_host<double>(x0, x_host, buffer_size);
+    //cudaFree(x0);
+    //cudaFree(x1);
+
     double time = stop_event.time_since(start_event);
 #ifdef USE_ASCENT
     AscentAdaptor::Finalize();
@@ -180,27 +181,29 @@ int main(int argc, char** argv) {
     std::cout << "## " << time << "s, "
               << nsteps*(nx-2)*(ny-2) / time << " points/second"
               << std::endl << std::endl;
-#if !defined(USE_ASCENT) && !defined(USE_CATALYST)
-    std::cout << "writing to output.bin/bov" << std::endl;
-    write_to_file(nx, ny, x_host);
-#endif
+
+    //std::cout << "writing to output.bin/bov" << std::endl;
+    //write_to_file(nx, ny, x1);
+
+    free(x0);
+    free(x1);
+
     return 0;
 }
 
-void write_to_file(int nx, int ny, double* data) {
-    {
-        FILE* output = fopen("output.bin", "w");
-        fwrite(data, sizeof(double), nx * ny, output);
-        fclose(output);
-    }
+void write_to_file(int nx, int ny, double* data)
+{
+  FILE* output = fopen("output.bin", "w");
+  fwrite(data, sizeof(double), nx * ny, output);
+  fclose(output);
 
-    std::ofstream fid("output.bov");
-    fid << "TIME: 0.0" << std::endl;
-    fid << "DATA_FILE: output.bin" << std::endl;
-    fid << "DATA_SIZE: " << nx << " " << ny << " 1" << std::endl;;
-    fid << "DATA_FORMAT: DOUBLE" << std::endl;
-    fid << "VARIABLE: phi" << std::endl;
-    fid << "DATA_ENDIAN: LITTLE" << std::endl;
-    fid << "CENTERING: nodal" << std::endl;
-    fid << "BRICK_SIZE: 1.0 1.0 1.0" << std::endl;
+  std::ofstream fid("output.bov");
+  fid << "TIME: 0.0" << std::endl;
+  fid << "DATA_FILE: output.bin" << std::endl;
+  fid << "DATA_SIZE: " << nx << " " << ny << " 1" << std::endl;;
+  fid << "DATA_FORMAT: DOUBLE" << std::endl;
+  fid << "VARIABLE: phi" << std::endl;
+  fid << "DATA_ENDIAN: LITTLE" << std::endl;
+  fid << "CENTERING: nodal" << std::endl;
+  fid << "BRICK_SIZE: 1.0 1.0 1.0" << std::endl;
 }

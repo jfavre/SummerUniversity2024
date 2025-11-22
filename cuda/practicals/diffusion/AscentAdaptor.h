@@ -10,7 +10,7 @@ namespace AscentAdaptor
   conduit::Node mesh;
   conduit::Node actions;
 
-  void Initialize(double *temperature_data, const int nx, const int ny, const int offset=0)
+void Initialize(double *temperature_data, const int nx, const int ny, const int offset=0)
 { 
   std::cout << "AscentInitialize.........................................\n";
 
@@ -24,7 +24,7 @@ namespace AscentAdaptor
   }
   ascent_options["default_dir"] = output_path;
 #if defined (ASCENT_CUDA_ENABLED)
-  std::cout << "[using ascent cuda support]" << std::endl;
+  std::cout << "\n[using ascent cuda support]" << std::endl;
   ascent_options["runtime/vtkm/backend"] = "cuda";
 #endif
   AscentAdaptor::ascent.open(ascent_options);
@@ -80,10 +80,12 @@ namespace AscentAdaptor
   conduit::Node &scenes       = add_action["scenes"];
   scenes["s1/plots/p1/type"]  = "pseudocolor";
   scenes["s1/plots/p1/field"] = varname;
+  scenes["s1/plots/p1/color_table/name"] = "viridis";
   // adding the iso-lines
   scenes["s1/plots/p2/type"]  = "mesh";
   scenes["s1/plots/p2/pipeline"] = "isolines";
-  scenes["s1/image_prefix"] = varname + "_%04d";
+  scenes["s1/image_prefix"] = varname + "-Ascent.%05d";
+  actions.save("my_ascent_actions.yaml");
 }
 
 void Execute(int timestep, double dt)

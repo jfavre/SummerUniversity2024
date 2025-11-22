@@ -6,6 +6,7 @@
 #include <vtkm/cont/ArrayPortal.h>
 #include <vtkm/cont/DataSet.h>
 #include <vtkm/filter/contour/Contour.h>
+#include <vtkm/filter/field_transform/PointTransform.h>
 #include <vtkm/cont/DataSetBuilderUniform.h>
 #include <vtkm/cont/Initialize.h>
 #include <vtkm/io/VTKDataSetWriter.h>
@@ -28,14 +29,14 @@ namespace VTKmAdaptor
   vtkm::rendering::ColorBarAnnotation     m_color_bar_annotation;
 
   vtkm::rendering::WorldAnnotator   *annotate;
-  vtkm::rendering::Scene            scene;
   vtkm::rendering::MapperPoint      mapper0;
-  vtkm::rendering::MapperRayTracer  mapper1;
-  vtkm::rendering::MapperWireframer mapper2;
+  vtkm::rendering::MapperRayTracer  mapperRaytracer;
+  vtkm::rendering::MapperWireframer mapperWireframe;
   vtkm::cont::DataSet               dataSet;
   vtkm::cont::ColorTable colorTable("viridis");
-    
-  void Initialize(const int nx, const int ny, const int rank=0)
+  std::vector<vtkm::rendering::Color> White {vtkm::rendering::Color::white};
+
+void Initialize(const int nx, const int ny, const int rank=0)
 {
 #if defined VTKm_ENABLE_CUDA
   std::cout << "[using VTK-m cuda support]" << std::endl;
@@ -48,54 +49,77 @@ namespace VTKmAdaptor
   vtkm::cont::ArrayHandleUniformPointCoordinates coords(dimensions, origin, Spacing);
   vtkm::cont::CoordinateSystem cs("coords", coords);
   dataSet.AddCoordinateSystem(cs);
-  
+
   vtkm::cont::CellSetStructured<2> cellSet;
   cellSet.SetPointDimensions(vtkm::Id2(dimensions[0], dimensions[1]));
   dataSet.SetCellSet(cellSet);
   annotate = canvas.CreateWorldAnnotator();
-    m_color_bar_annotation.SetColorTable(colorTable);
-    m_color_bar_annotation.SetFieldName("Density");
+  m_color_bar_annotation.SetColorTable(colorTable);
+  m_color_bar_annotation.SetFieldName("Temperature");
 }
 
 void Execute(int it, double *temperature_data, const int size, const int rank=0)
 {
-  std::ostringstream fname;
-  // seems like the reference to the data gets "lost", so we must redo it at each step
+  vtkm::rendering::Scene scene;
+  try{
   auto dataArray = vtkm::cont::make_ArrayHandle(temperature_data, size, vtkm::CopyFlag::Off);
-  dataSet.AddPointField("Density", dataArray);
-  vtkm::cont::ArrayHandle<vtkm::Range> drange = vtkm::cont::FieldRangeCompute(dataSet, "Density");
+  dataSet.AddPointField("Temperature", dataArray);
+  vtkm::cont::ArrayHandle<vtkm::Range> drange = vtkm::cont::FieldRangeCompute(dataSet, "Temperature");
   auto range = drange.ReadPortal().Get(0);
-  std::cout << "range(Density) = " << range << std::endl;
+  std::cout << "range(Temperature) = " << range << std::endl;
 
   colorTable.RescaleToRange(range);
-  vtkm::rendering::Actor actor(dataSet.GetCellSet(),
+  vtkm::rendering::Actor mesh_actor(dataSet.GetCellSet(),
                                dataSet.GetCoordinateSystem(),
-                               dataSet.GetField("Density"),
+                               dataSet.GetField("Temperature"),
                                colorTable);
 
-  scene.AddActor(actor);
+  vtkm::filter::contour::Contour contour;
+  contour.SetGenerateNormals(false);
+  contour.SetMergeDuplicatePoints(true);
+  contour.SetIsoValues({0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9});
+  contour.SetActiveField("Temperature");
+  contour.SetFieldsToPass(vtkm::filter::FieldSelection::Mode::All);
+  vtkm::cont::DataSet isolines = contour.Execute(dataSet);
+  
+  vtkm::filter::field_transform::PointTransform xform;
+  xform.SetTranslation(vtkm::Vec3f(0.0f, 0.0f, 0.001f));
+ 
+  vtkm::cont::DataSet isolines2 = xform.Execute(isolines);
 
-  //m_color_bar_annotation.SetRange(vtkm::Range(0.0, 1.0), 5);
-  fname << "/dev/shm/insitu." << std::setfill('0') << std::setw(6) << it 
-        << "." << std::setfill('0') << std::setw(2) << rank <<".png";
+  vtkm::rendering::Actor isolines_actor(isolines2.GetCellSet(),
+                               isolines2.GetCoordinateSystem(),
+                               isolines2.GetField("Temperature"),
+                               vtkm::rendering::Color(1.0f, 1.0f, 1.0f, 1.0f));
 
-  vtkm::rendering::View3D view(scene, mapper2, canvas);
+  scene.AddActor(mesh_actor);
+  scene.AddActor(isolines_actor);
+  
+  m_color_bar_annotation.SetRange(vtkm::Range(0.0, 1.0), 5);
+  canvas.Clear();
+  vtkm::rendering::View3D view(scene, mapperWireframe, canvas);
   auto camera = view.GetCamera();
-    //camera.SetModeTo2D();
 
-    //camera.SetViewRange2D(vtkm::Range(-1.0, 2.0), vtkm::Range(-1.0, 2.0));
-    //
   camera.SetLookAt(vtkm::Vec3f(0.5, 0.5, 0.0));
   camera.SetPosition(vtkm::Vec3f(0.5, 0.5, 10.0));
   camera.SetViewUp(vtkm::Vec3f(0.0, 1.0, 0.0));
-    //
+
   view.SetBackgroundColor(vtkm::rendering::Color(0.0f, 0.0f, 0.0f));
   view.SetForegroundColor(vtkm::rendering::Color(1.0f, 1.0f, 1.0f));
 
   view.Paint();
   view.RenderScreenAnnotations();
   m_color_bar_annotation.Render(camera, *annotate, canvas);
+
+  std::ostringstream fname;
+  fname << "./datasets/Temperature-vtkm." << std::setfill('0') << std::setw(6) << it 
+        << "." << std::setfill('0') << std::setw(2) << rank <<".png";
   view.SaveAs(fname.str());
+  }
+  catch (const vtkm::cont::Error& error)
+  {
+    std::cerr << "VTK-m error occurred!: " << error.GetMessage() << std::endl;
+  }
 }
 
 void Finalize()
