@@ -70,10 +70,7 @@ void Execute(int it, double *temperature_data, const int size, const int rank=0)
   std::cout << "range(Temperature) = " << range << std::endl;
 
   colorTable.RescaleToRange(range);
-  viskores::rendering::Actor mesh_actor(dataSet.GetCellSet(),
-                               dataSet.GetCoordinateSystem(),
-                               dataSet.GetField("Temperature"),
-                               colorTable);
+  viskores::rendering::Actor mesh_actor(dataSet, "Temperature", colorTable);
 
   viskores::filter::contour::Contour contour;
   contour.SetGenerateNormals(false);
@@ -82,15 +79,14 @@ void Execute(int it, double *temperature_data, const int size, const int rank=0)
   contour.SetActiveField("Temperature");
   contour.SetFieldsToPass(viskores::filter::FieldSelection::Mode::All);
   viskores::cont::DataSet isolines = contour.Execute(dataSet);
-  
+
+// need to offset the isolines by a small amount in the direction of the eye-point
   viskores::filter::field_transform::PointTransform xform;
   xform.SetTranslation(viskores::Vec3f(0.0f, 0.0f, 0.001f));
  
   viskores::cont::DataSet isolines2 = xform.Execute(isolines);
 
-  viskores::rendering::Actor isolines_actor(isolines2.GetCellSet(),
-                               isolines2.GetCoordinateSystem(),
-                               isolines2.GetField("Temperature"),
+  viskores::rendering::Actor isolines_actor(isolines2, "Temperature",
                                viskores::rendering::Color(1.0f, 1.0f, 1.0f, 1.0f));
 
   scene.AddActor(mesh_actor);
